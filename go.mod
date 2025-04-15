@@ -17,6 +17,7 @@ require (
 	github.com/sony/sonyflake v1.2.0
 	github.com/spf13/viper v1.20.1
 	github.com/swaggo/files v1.0.1
+	github.com/swaggo/swag v1.16.1
 	go.uber.org/zap v1.27.0
 	golang.org/x/sync v0.13.0
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
@@ -131,7 +132,6 @@ require (
 	github.com/spf13/pflag v1.0.6 // indirect
 	github.com/stretchr/testify v1.10.0 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
-	github.com/swaggo/swag v1.16.1 // indirect
 	github.com/tidwall/gjson v1.17.3 // indirect
 	github.com/tidwall/match v1.1.1 // indirect
 	github.com/tidwall/pretty v1.2.0 // indirect
@@ -145,9 +145,9 @@ require (
 	go.opentelemetry.io/otel/trace v1.35.0 // indirect
 	go.uber.org/multierr v1.10.0 // indirect
 	golang.org/x/arch v0.14.0 // indirect
-	golang.org/x/crypto v0.33.0 // indirect
+	golang.org/x/crypto v0.35.0 // indirect
 	golang.org/x/exp v0.0.0-20250106191152-7588d65b2ba8 // indirect
-	golang.org/x/net v0.35.0 // indirect
+	golang.org/x/net v0.36.0 // indirect
 	golang.org/x/sys v0.30.0 // indirect
 	golang.org/x/text v0.22.0 // indirect
 	golang.org/x/time v0.11.0 // indirect
