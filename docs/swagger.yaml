@@ -1,0 +1,90 @@
+basePath: /api/v1
+definitions:
+  github_com_Wenrh2004_sandbox_api_v1.Response:
+    properties:
+      code:
+        type: integer
+      data: { }
+      message:
+        type: string
+    type: object
+  github_com_Wenrh2004_sandbox_api_v1.TaskSubmitRequest:
+    properties:
+      code:
+        type: string
+      language:
+        type: string
+    type: object
+  github_com_Wenrh2004_sandbox_api_v1.TaskSubmitResponse:
+    properties:
+      code:
+        type: integer
+      data:
+        $ref: '#/definitions/github_com_Wenrh2004_sandbox_api_v1.TaskSubmitResponseBody'
+      message:
+        type: string
+    type: object
+  github_com_Wenrh2004_sandbox_api_v1.TaskSubmitResponseBody:
+    properties:
+      task_id:
+        type: string
+    type: object
+host: localhost:8888
+info:
+  contact:
+    email: support@swagger.io
+    name: API Support
+    url: http://www.swagger.io/support
+  description: The Code SandBox to KingYen.
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  termsOfService: http://swagger.io/terms/
+  title: KingYen's Code SandBox API
+  version: 1.0.0
+paths:
+  /v1/tasks/{submit_id}:
+    post:
+      consumes:
+        - application/json
+      description: 提交新的任务
+      parameters:
+        - description: 任务提交请求参数
+          in: body
+          name: request
+          required: true
+          schema:
+            $ref: '#/definitions/github_com_Wenrh2004_sandbox_api_v1.TaskSubmitRequest'
+        - description: 提交ID
+          in: path
+          name: submit_id
+          required: true
+          type: string
+      produces:
+        - application/json
+      responses:
+        "200":
+          description: 成功
+          schema:
+            $ref: '#/definitions/github_com_Wenrh2004_sandbox_api_v1.TaskSubmitResponse'
+        "400":
+          description: 请求参数错误
+          schema:
+            $ref: '#/definitions/github_com_Wenrh2004_sandbox_api_v1.Response'
+        "401":
+          description: 未授权
+          schema:
+            $ref: '#/definitions/github_com_Wenrh2004_sandbox_api_v1.Response'
+        "500":
+          description: 服务器内部错误
+          schema:
+            $ref: '#/definitions/github_com_Wenrh2004_sandbox_api_v1.Response'
+      summary: 提交任务
+      tags:
+        - 任务管理
+securityDefinitions:
+  Bearer:
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

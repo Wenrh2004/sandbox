@@ -5,9 +5,10 @@ import (
 	"fmt"
 	"sync"
 	"time"
-
+	
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
+	"github.com/spf13/viper"
 )
 
 // 容器状态
@@ -32,29 +33,29 @@ type Container struct {
 // ContainerPool 管理容器的池子
 type ContainerPool struct {
 	containers  map[string][]*Container // 按语言类型分组的容器
-	cli         *client.Client
+	cli         *client.Client          // Docker 客户端
 	mutex       sync.Mutex
 	maxPerLang  int           // 每种语言最大容器数
 	idleTimeout time.Duration // 空闲容器超时时间
 }
 
 // NewContainerPool 创建一个新的容器池
-func NewContainerPool(maxPerLang int, idleTimeout time.Duration) (*ContainerPool, error) {
+func NewContainerPool(conf *viper.Viper) (*ContainerPool, error) {
 	cli, err := client.NewClientWithOpts(client.FromEnv)
 	if err != nil {
 		return nil, err
 	}
-
+	
 	pool := &ContainerPool{
 		containers:  make(map[string][]*Container),
 		cli:         cli,
-		maxPerLang:  maxPerLang,
-		idleTimeout: idleTimeout,
+		maxPerLang:  conf.GetInt("app.container.max_num"),
+		idleTimeout: conf.GetDuration("app.container.timeout") * time.Hour,
 	}
-
+	
 	// 启动清理协程
 	go pool.cleanupIdleContainers()
-
+	
 	return pool, nil
 }
 
@@ -62,14 +63,14 @@ func NewContainerPool(maxPerLang int, idleTimeout time.Duration) (*ContainerPool
 func (p *ContainerPool) GetContainer(ctx context.Context, language string) (*Container, error) {
 	strategy := GetStrategy(language)
 	if strategy == nil {
-		return nil, fmt.Errorf("unsupported language: %s", language)
+		return nil, fmt.Errorf("[ContainerPool.GetContainer]unsupported language: %s", language)
 	}
-
+	
 	image := strategy.GetImage()
-
+	
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
-
+	
 	// 检查是否有空闲容器
 	containers := p.containers[language]
 	for _, c := range containers {
@@ -79,12 +80,12 @@ func (p *ContainerPool) GetContainer(ctx context.Context, language string) (*Con
 			return c, nil
 		}
 	}
-
+	
 	// 检查是否达到该语言的容器上限
 	if len(containers) >= p.maxPerLang {
-		return nil, fmt.Errorf("reach max containers for language: %s", language)
+		return nil, fmt.Errorf("[ContainerPool.GetContainer]reach max containers for language: %s", language)
 	}
-
+	
 	// 创建新容器
 	containerConfig := &container.Config{
 		Image: image,
@@ -94,7 +95,7 @@ func (p *ContainerPool) GetContainer(ctx context.Context, language string) (*Con
 	hostConfig := &container.HostConfig{
 		AutoRemove: false,
 	}
-
+	
 	// 设置创建状态
 	newContainer := &Container{
 		Image:    image,
@@ -102,10 +103,10 @@ func (p *ContainerPool) GetContainer(ctx context.Context, language string) (*Con
 		Status:   ContainerStatusCreating,
 		LastUsed: time.Now(),
 	}
-
+	
 	// 将新容器添加到池中
 	p.containers[language] = append(p.containers[language], newContainer)
-
+	
 	// 创建容器但不启动
 	containerResp, err := p.cli.ContainerCreate(ctx, containerConfig, hostConfig, nil, nil, "")
 	if err != nil {
@@ -113,20 +114,20 @@ func (p *ContainerPool) GetContainer(ctx context.Context, language string) (*Con
 		p.removeContainer(newContainer)
 		return nil, err
 	}
-
+	
 	// 更新容器ID
 	newContainer.ID = containerResp.ID
-
+	
 	// 启动容器
 	if err := p.cli.ContainerStart(ctx, containerResp.ID, container.StartOptions{}); err != nil {
 		// 移除失败的容器
 		p.removeContainer(newContainer)
 		return nil, err
 	}
-
+	
 	// 更新状态为等待
 	newContainer.Status = ContainerStatusPending
-
+	
 	return newContainer, nil
 }
 
@@ -134,7 +135,7 @@ func (p *ContainerPool) GetContainer(ctx context.Context, language string) (*Con
 func (p *ContainerPool) SetContainerRunning(containerID string) {
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
-
+	
 	for _, containers := range p.containers {
 		for _, c := range containers {
 			if c.ID == containerID {
@@ -149,7 +150,7 @@ func (p *ContainerPool) SetContainerRunning(containerID string) {
 func (p *ContainerPool) ReleaseContainer(containerID string) {
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
-
+	
 	for _, containers := range p.containers {
 		for _, c := range containers {
 			if c.ID == containerID {
@@ -161,13 +162,13 @@ func (p *ContainerPool) ReleaseContainer(containerID string) {
 					execConfig := container.ExecOptions{
 						Cmd: []string{"sh", "-c", "rm -rf /app/*"},
 					}
-
+					
 					execResp, err := cli.ContainerExecCreate(ctx, containerID, execConfig)
 					if err == nil {
 						_ = cli.ContainerExecStart(ctx, execResp.ID, container.ExecStartOptions{})
 					}
 				}
-
+				
 				c.Status = ContainerStatusIdle
 				c.LastUsed = time.Now()
 				return
@@ -192,18 +193,18 @@ func (p *ContainerPool) removeContainer(container *Container) {
 func (p *ContainerPool) cleanupIdleContainers() {
 	ticker := time.NewTicker(10 * time.Minute)
 	defer ticker.Stop()
-
+	
 	for range ticker.C {
 		p.mutex.Lock()
 		now := time.Now()
-
+		
 		for lang, containers := range p.containers {
 			var active []*Container
 			for _, c := range containers {
 				if c.Status == ContainerStatusIdle && now.Sub(c.LastUsed) > p.idleTimeout {
 					// 标记为销毁中
 					c.Status = ContainerStatusDestroying
-
+					
 					// 停止并删除容器
 					ctx := context.Background()
 					p.cli.ContainerStop(ctx, c.ID, container.StopOptions{})
@@ -214,7 +215,7 @@ func (p *ContainerPool) cleanupIdleContainers() {
 			}
 			p.containers[lang] = active
 		}
-
+		
 		p.mutex.Unlock()
 	}
 }
@@ -223,7 +224,7 @@ func (p *ContainerPool) cleanupIdleContainers() {
 func (p *ContainerPool) Close() error {
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
-
+	
 	ctx := context.Background()
 	for _, containers := range p.containers {
 		for _, c := range containers {
@@ -232,7 +233,7 @@ func (p *ContainerPool) Close() error {
 			p.cli.ContainerRemove(ctx, c.ID, container.RemoveOptions{Force: true})
 		}
 	}
-
+	
 	return nil
 }
 
@@ -241,10 +242,10 @@ var globalPool *ContainerPool
 var poolOnce sync.Once
 
 // GetContainerPool 获取全局容器池实例
-func GetContainerPool() (*ContainerPool, error) {
+func GetContainerPool(conf *viper.Viper) (*ContainerPool, error) {
 	var poolErr error
 	poolOnce.Do(func() {
-		globalPool, poolErr = NewContainerPool(5, 30*time.Minute)
+		globalPool, poolErr = NewContainerPool(conf)
 	})
 	return globalPool, poolErr
 }
