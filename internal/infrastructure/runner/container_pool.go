@@ -32,6 +32,7 @@ type Container struct {
 
 // ContainerPool 管理容器的池子
 type ContainerPool struct {
+	// TODO: use the queue
 	containers  map[string][]*Container // 按语言类型分组的容器
 	cli         *client.Client          // Docker 客户端
 	mutex       sync.Mutex
@@ -40,12 +41,8 @@ type ContainerPool struct {
 }
 
 // NewContainerPool 创建一个新的容器池
-func NewContainerPool(conf *viper.Viper) (*ContainerPool, error) {
-	cli, err := client.NewClientWithOpts(client.FromEnv)
-	if err != nil {
-		return nil, err
-	}
-	
+func NewContainerPool(conf *viper.Viper, cli *client.Client) (*ContainerPool, error) {
+	// TODO: add pre create containers
 	pool := &ContainerPool{
 		containers:  make(map[string][]*Container),
 		cli:         cli,
@@ -242,10 +239,10 @@ var globalPool *ContainerPool
 var poolOnce sync.Once
 
 // GetContainerPool 获取全局容器池实例
-func GetContainerPool(conf *viper.Viper) (*ContainerPool, error) {
+func GetContainerPool(conf *viper.Viper, cli *client.Client) (*ContainerPool, error) {
 	var poolErr error
 	poolOnce.Do(func() {
-		globalPool, poolErr = NewContainerPool(conf)
+		globalPool, poolErr = NewContainerPool(conf, cli)
 	})
 	return globalPool, poolErr
 }

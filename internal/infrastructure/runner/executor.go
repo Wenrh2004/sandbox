@@ -20,12 +20,9 @@ type codeRunner struct {
 	pool *ContainerPool
 }
 
-func NewCodeRunner(pool *ContainerPool) CodeRunner {
+func NewCodeRunner(pool *ContainerPool, cli *client.Client) CodeRunner {
 	// 创建一个临时的Docker客户端
-	cli, err := client.NewClientWithOpts(client.FromEnv)
-	if err != nil {
-		panic(err)
-	}
+	
 	return &codeRunner{
 		cli:  cli,
 		pool: pool,

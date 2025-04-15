@@ -23,11 +23,12 @@ import (
 
 func NewWire(viperViper *viper.Viper, logger *log.Logger) (*app.App, func(), error) {
 	adapterService := adapter.NewService(logger)
-	containerPool, err := runner.NewContainerPool(viperViper)
+	client := runner.NewClient()
+	containerPool, err := runner.GetContainerPool(viperViper, client)
 	if err != nil {
 		return nil, nil, err
 	}
-	codeRunner := runner.NewCodeRunner(containerPool)
+	codeRunner := runner.NewCodeRunner(containerPool, client)
 	taskDomainService := service.NewTaskService(viperViper, codeRunner)
 	taskHandler := handler.NewTaskHandler(adapterService, taskDomainService)
 	server := application.NewTaskApplication(viperViper, logger, taskHandler)
@@ -38,7 +39,7 @@ func NewWire(viperViper *viper.Viper, logger *log.Logger) (*app.App, func(), err
 
 // wire.go:
 
-var infrastructureSet = wire.NewSet(runner.NewContainerPool, runner.NewCodeRunner)
+var infrastructureSet = wire.NewSet(runner.NewClient, runner.GetContainerPool, runner.NewCodeRunner)
 
 var domainSet = wire.NewSet(service.NewTaskService)
 

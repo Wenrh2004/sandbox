@@ -18,7 +18,8 @@ import (
 )
 
 var infrastructureSet = wire.NewSet(
-	runner.NewContainerPool,
+	runner.NewClient,
+	runner.GetContainerPool,
 	runner.NewCodeRunner,
 )
 
