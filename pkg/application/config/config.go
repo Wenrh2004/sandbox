@@ -1,28 +1,14 @@
 package config
 
-import (
-	"fmt"
-	"os"
-	
-	"github.com/spf13/viper"
-)
+import "github.com/spf13/viper"
 
-// TODO: Add the Nacos configuration center
-func NewConfig(p string) *viper.Viper {
-	envConf := os.Getenv("APP_CONF")
-	if envConf == "" {
-		envConf = p
-	}
-	fmt.Println("load conf file:", envConf)
-	return getConfig(envConf)
+type Config interface {
+	GetConfig() *viper.Viper
 }
 
-func getConfig(path string) *viper.Viper {
-	conf := viper.New()
-	conf.SetConfigFile(path)
-	err := conf.ReadInConfig()
-	if err != nil {
-		panic(err)
+func NewConfig(conf *viper.Viper) Config {
+	if conf.Get("app.config.nacos") != nil {
+		return NewNacosConfig(conf)
 	}
-	return conf
+	return nil
 }

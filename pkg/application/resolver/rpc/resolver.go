@@ -9,9 +9,9 @@ import (
 
 func NewRPCResolver(conf *viper.Viper) discovery.Resolver {
 	c := &consulapi.Config{
-		Address: conf.GetString("app.config.consul.address"),
-		Scheme:  conf.GetString("app.config.consul.scheme"),
-		Token:   conf.GetString("app.config.consul.token"),
+		Address: conf.GetString("app.bootstrap.consul.address"),
+		Scheme:  conf.GetString("app.bootstrap.consul.scheme"),
+		Token:   conf.GetString("app.bootstrap.consul.token"),
 	}
 	r, err := consul.NewConsulResolverWithConfig(c)
 	if err != nil {

@@ -9,6 +9,7 @@ import (
 	
 	"github.com/Wenrh2004/sandbox/cmd/server/wire"
 	"github.com/Wenrh2004/sandbox/pkg/application/config"
+	"github.com/Wenrh2004/sandbox/pkg/bootstrap"
 	"github.com/Wenrh2004/sandbox/pkg/log"
 )
 
@@ -29,9 +30,10 @@ import (
 // @externalDocs.description	OpenAPI
 // @externalDocs.url			https://swagger.io/resources/open-api/
 func main() {
-	var envConf = flag.String("conf", "config/bootstrap.yml", "config path, eg: -conf ./config/local.yml")
+	var envConf = flag.String("conf", "config/bootstrap.yml", "boot path, eg: -conf ./config/bootstrap.yml")
 	flag.Parse()
-	conf := config.NewConfig(*envConf)
+	boot := bootstrap.NewBootstrap(*envConf)
+	conf := config.NewConfig(boot).GetConfig()
 	
 	logger := log.NewLog(conf)
 	
