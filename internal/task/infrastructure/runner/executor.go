@@ -51,13 +51,17 @@ func (cr *codeRunner) Exec(ctx context.Context, language, filePath, fileContent 
 	createFileCmd := fmt.Sprintf("mkdir -p /app && echo '%s' > /app/%s",
 		strings.ReplaceAll(fileContent, "'", "'\"'\"'"), fileName)
 	
-	_, err = cr.cli.ContainerExecCreate(ctx, c.ID, container.ExecOptions{
+	execResp, err := cr.cli.ContainerExecCreate(ctx, c.ID, container.ExecOptions{
 		AttachStdout: true,
 		AttachStderr: true,
 		Cmd:          []string{"sh", "-c", createFileCmd},
 	})
 	if err != nil {
 		return "", fmt.Errorf("failed to create file in container: %v", err)
+	}
+	
+	if err = cr.cli.ContainerExecStart(ctx, execResp.ID, container.ExecStartOptions{}); err != nil {
+		return "", fmt.Errorf("failed to start exec command: %v", err)
 	}
 	
 	// 设置容器状态为running
@@ -70,7 +74,7 @@ func (cr *codeRunner) Exec(ctx context.Context, language, filePath, fileContent 
 		Cmd:          []string{"sh", "-c", fmt.Sprintf("cd /app && %s", cmd)},
 	}
 	
-	execResp, err := cr.cli.ContainerExecCreate(ctx, c.ID, execConfig)
+	execResp, err = cr.cli.ContainerExecCreate(ctx, c.ID, execConfig)
 	if err != nil {
 		return "", err
 	}

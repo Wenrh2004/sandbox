@@ -26,6 +26,7 @@ func NewTaskHandler(srv *adapter.Service, domain *service.TaskDomainService) *Ta
 	return &TaskHandler{
 		Service:           srv,
 		TaskDomainService: domain,
+		sf:                singleflight.Group{},
 	}
 }
 
@@ -63,6 +64,7 @@ func (t *TaskHandler) Submit(ctx context.Context, c *app.RequestContext) {
 	if !ok {
 		t.Logger.WithContext(ctx).Error("[TaskHandler.Submit]appID not found in context")
 		v1.HandlerError(c, consts.StatusUnauthorized, v1.ErrUnauthorized)
+		return
 	}
 	
 	// Single flight to prevent duplicate submissions
@@ -78,10 +80,12 @@ func (t *TaskHandler) Submit(ctx context.Context, c *app.RequestContext) {
 		if errors.Is(err, service.ErrUnsupported) {
 			t.Logger.WithContext(ctx).Error("[TaskHandler.Submit]unsupported submit task", zap.Error(err))
 			v1.HandlerError(c, consts.StatusBadRequest, v1.ErrBadRequest)
+			return
 		}
 		if errors.Is(err, service.ErrTaskLimit) {
 			t.Logger.WithContext(ctx).Error("[TaskHandler.Submit]task limit exceeded", zap.Error(err))
 			v1.HandlerError(c, consts.StatusBadGateway, v1.ErrLimitExceeded)
+			return
 		}
 		t.Logger.WithContext(ctx).Error("[TaskHandler.Submit]submit task failed", zap.Error(err))
 		v1.HandlerError(c, consts.StatusInternalServerError, v1.ErrInternalServerError)
