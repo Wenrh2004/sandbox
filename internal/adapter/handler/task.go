@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"errors"
 	"strings"
 	
 	"github.com/cloudwego/hertz/pkg/app"
@@ -74,6 +75,14 @@ func (t *TaskHandler) Submit(ctx context.Context, c *app.RequestContext) {
 		return taskID, nil
 	})
 	if err != nil {
+		if errors.Is(err, service.ErrUnsupported) {
+			t.Logger.WithContext(ctx).Error("[TaskHandler.Submit]unsupported submit task", zap.Error(err))
+			v1.HandlerError(c, consts.StatusBadRequest, v1.ErrBadRequest)
+		}
+		if errors.Is(err, service.ErrTaskLimit) {
+			t.Logger.WithContext(ctx).Error("[TaskHandler.Submit]task limit exceeded", zap.Error(err))
+			v1.HandlerError(c, consts.StatusBadGateway, v1.ErrLimitExceeded)
+		}
 		t.Logger.WithContext(ctx).Error("[TaskHandler.Submit]submit task failed", zap.Error(err))
 		v1.HandlerError(c, consts.StatusInternalServerError, v1.ErrInternalServerError)
 		return

@@ -1,5 +1,7 @@
 package vo
 
+import "strings"
+
 type Language struct {
 	Type       string `json:"type"`
 	FileSuffix string `json:"file_suffix"`
@@ -22,11 +24,11 @@ var (
 	RUST       = newLanguage("RUST", ".rs", "rust:1.70")
 	C          = newLanguage("C", ".c", "gcc:12")
 	CPLUSPLUS  = newLanguage("C++", ".cpp", "gcc:12")
-	C_SHARP    = newLanguage("C#", ".cs", "mcr.microsoft.com/dotnet/sdk:7.0")
+	CSHARP     = newLanguage("C#", ".cs", "mcr.microsoft.com/dotnet/sdk:7.0")
 )
 
 func GetLanguageByType(typ string) *Language {
-	switch typ {
+	switch strings.ToTitle(typ) {
 	case GO.Type:
 		return GO
 	case JAVA.Type:
@@ -41,8 +43,8 @@ func GetLanguageByType(typ string) *Language {
 		return C
 	case CPLUSPLUS.Type:
 		return CPLUSPLUS
-	case C_SHARP.Type:
-		return C_SHARP
+	case CSHARP.Type:
+		return CSHARP
 	default:
 		return nil
 	}

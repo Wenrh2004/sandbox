@@ -2,7 +2,7 @@ package service
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"os"
 	"path/filepath"
 	"sync"
@@ -14,6 +14,11 @@ import (
 	"github.com/Wenrh2004/sandbox/internal/domain/aggregate"
 	"github.com/Wenrh2004/sandbox/internal/infrastructure/runner"
 	"github.com/Wenrh2004/sandbox/pkg/util"
+)
+
+var (
+	ErrUnsupported = errors.New("[TaskDomainService.Submit]unsupported language")
+	ErrTaskLimit   = errors.New("[TaskDomainService.Submit]user task limit reached")
 )
 
 // TaskDomainService 结构体
@@ -42,12 +47,12 @@ func (s *TaskDomainService) Submit(ctx context.Context, task *aggregate.Task) (s
 	filename := task.GetFileName()
 	lang := util.DetectLanguage(filename)
 	if lang == "" {
-		return "", fmt.Errorf("unsupported language")
+		return "", ErrUnsupported
 	}
 	
 	// 限流检测
 	if !s.acquireUserSlot(task.AppID) {
-		return "", fmt.Errorf("user task limit reached")
+		return "", ErrTaskLimit
 	}
 	
 	tmpPath := filepath.Join("tmp", filename)

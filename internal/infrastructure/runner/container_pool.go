@@ -9,6 +9,8 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
 	"github.com/spf13/viper"
+	
+	"github.com/Wenrh2004/sandbox/pkg/quene"
 )
 
 // 容器状态
@@ -32,28 +34,69 @@ type Container struct {
 
 // ContainerPool 管理容器的池子
 type ContainerPool struct {
-	// TODO: use the queue
-	containers  map[string][]*Container // 按语言类型分组的容器
-	cli         *client.Client          // Docker 客户端
-	mutex       sync.Mutex
-	maxPerLang  int           // 每种语言最大容器数
-	idleTimeout time.Duration // 空闲容器超时时间
+	containers      map[string]*quene.RingQueue[*Container] // 使用环形队列按语言类型分组的容器
+	cli             *client.Client                          // Docker 客户端
+	mutex           sync.Mutex
+	maxPerLang      int           // 每种语言最大容器数
+	idleTimeout     time.Duration // 空闲容器超时时间
+	reservedPerLang int           // 每种语言预留的容器数
 }
 
 // NewContainerPool 创建一个新的容器池
 func NewContainerPool(conf *viper.Viper, cli *client.Client) (*ContainerPool, error) {
-	// TODO: add pre create containers
+	maxPerLang := conf.GetInt("app.container.max_num")
+	reservedPerLang := conf.GetInt("app.container.reserved_num") // 从配置中读取预留容器数
+	
 	pool := &ContainerPool{
-		containers:  make(map[string][]*Container),
-		cli:         cli,
-		maxPerLang:  conf.GetInt("app.container.max_num"),
-		idleTimeout: conf.GetDuration("app.container.timeout") * time.Hour,
+		containers:      make(map[string]*quene.RingQueue[*Container]),
+		cli:             cli,
+		maxPerLang:      maxPerLang,
+		idleTimeout:     conf.GetDuration("app.container.timeout") * time.Hour,
+		reservedPerLang: reservedPerLang,
 	}
 	
 	// 启动清理协程
 	go pool.cleanupIdleContainers()
 	
+	// 初始化预留容器
+	if err := pool.initReservedContainers(); err != nil {
+		return nil, fmt.Errorf("failed to initialize reserved containers: %v", err)
+	}
+	
 	return pool, nil
+}
+
+// initReservedContainers 初始化预留容器
+func (p *ContainerPool) initReservedContainers() error {
+	if p.reservedPerLang <= 0 {
+		return nil // 如果预留数量为0或负数，则不创建预留容器
+	}
+	
+	// 获取所有支持的语言
+	languages := p.getSupportedLanguages()
+	
+	ctx := context.Background()
+	for _, lang := range languages {
+		// 为每种语言创建预留容器
+		for i := 0; i < p.reservedPerLang; i++ {
+			c, err := p.GetContainer(ctx, lang)
+			if err != nil {
+				return fmt.Errorf("failed to create reserved c for %s: %v", lang, err)
+			}
+			
+			// 设置状态为空闲
+			c.Status = ContainerStatusIdle
+		}
+	}
+	
+	return nil
+}
+
+// getSupportedLanguages 返回所有支持的编程语言
+func (p *ContainerPool) getSupportedLanguages() []string {
+	// 从策略中获取所有支持的语言
+	// TODO: 根据策略注册表获取
+	return []string{"go", "python", "java", "javascript", "cpp"}
 }
 
 // GetContainer 从池中获取一个容器，如果没有可用的则创建一个新的
@@ -68,18 +111,48 @@ func (p *ContainerPool) GetContainer(ctx context.Context, language string) (*Con
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
 	
+	// 确保该语言的队列已初始化
+	if _, exists := p.containers[language]; !exists {
+		p.containers[language] = quene.NewRingQueue[*Container](p.maxPerLang)
+	}
+	
+	queue := p.containers[language]
+	
 	// 检查是否有空闲容器
-	containers := p.containers[language]
-	for _, c := range containers {
-		if c.Status == ContainerStatusIdle {
-			c.Status = ContainerStatusPending // 容器状态变为等待
-			c.LastUsed = time.Now()
-			return c, nil
+	var idleContainer *Container
+	var activeContainers []*Container
+	
+	// 搜索空闲容器
+	for !queue.IsEmpty() {
+		c, err := queue.Dequeue()
+		if err != nil {
+			break
 		}
+		
+		if c.Status == ContainerStatusIdle {
+			idleContainer = c
+			c.Status = ContainerStatusPending
+			c.LastUsed = time.Now()
+			break
+		}
+		
+		// 保存非空闲容器
+		activeContainers = append(activeContainers, c)
+	}
+	
+	// 将活跃的容器重新入队
+	for _, c := range activeContainers {
+		_ = queue.Enqueue(c)
+	}
+	
+	// 如果找到空闲容器，直接返回
+	if idleContainer != nil {
+		_ = queue.Enqueue(idleContainer)
+		return idleContainer, nil
 	}
 	
 	// 检查是否达到该语言的容器上限
-	if len(containers) >= p.maxPerLang {
+	if queue.IsFull() {
 		return nil, fmt.Errorf("[ContainerPool.GetContainer]reach max containers for language: %s", language)
 	}
 	
@@ -101,14 +174,9 @@ func (p *ContainerPool) GetContainer(ctx context.Context, language string) (*Con
 		LastUsed: time.Now(),
 	}
 	
-	// 将新容器添加到池中
-	p.containers[language] = append(p.containers[language], newContainer)
-	
 	// 创建容器但不启动
 	containerResp, err := p.cli.ContainerCreate(ctx, containerConfig, hostConfig, nil, nil, "")
 	if err != nil {
-		// 移除失败的容器
-		p.removeContainer(newContainer)
 		return nil, err
 	}
 	
@@ -117,13 +185,14 @@ func (p *ContainerPool) GetContainer(ctx context.Context, language string) (*Con
 	
 	// 启动容器
 	if err := p.cli.ContainerStart(ctx, containerResp.ID, container.StartOptions{}); err != nil {
-		// 移除失败的容器
-		p.removeContainer(newContainer)
 		return nil, err
 	}
 	
 	// 更新状态为等待
 	newContainer.Status = ContainerStatusPending
+	
+	// 将新容器添加到队列中
+	_ = queue.Enqueue(newContainer)
 	
 	return newContainer, nil
 }
@@ -133,13 +202,12 @@ func (p *ContainerPool) SetContainerRunning(containerID string) {
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
 	
-	for _, containers := range p.containers {
-		for _, c := range containers {
+	for _, queue := range p.containers {
+		queue.ForEach(func(c *Container) {
 			if c.ID == containerID {
 				c.Status = ContainerStatusRunning
-				return
 			}
-		}
+		})
 	}
 }
 
@@ -148,10 +216,11 @@ func (p *ContainerPool) ReleaseContainer(containerID string) {
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
 	
-	for _, containers := range p.containers {
-		for _, c := range containers {
+	for _, queue := range p.containers {
+		queue.ForEach(func(c *Container) {
 			if c.ID == containerID {
 				c.Status = ContainerStatusReleasing
+				
 				// 清理容器内的文件
 				ctx := context.Background()
 				cli, err := client.NewClientWithOpts(client.FromEnv)
@@ -168,21 +237,8 @@ func (p *ContainerPool) ReleaseContainer(containerID string) {
 				
 				c.Status = ContainerStatusIdle
 				c.LastUsed = time.Now()
-				return
 			}
-		}
-	}
-}
-
-// removeContainer 从容器池中移除容器
-func (p *ContainerPool) removeContainer(container *Container) {
-	for lang, containers := range p.containers {
-		for i, c := range containers {
-			if c == container {
-				p.containers[lang] = append(containers[:i], containers[i+1:]...)
-				return
-			}
-		}
+		})
 	}
 }
 
@@ -195,10 +251,12 @@ func (p *ContainerPool) cleanupIdleContainers() {
 		p.mutex.Lock()
 		now := time.Now()
 		
-		for lang, containers := range p.containers {
-			var active []*Container
-			for _, c := range containers {
-				if c.Status == ContainerStatusIdle && now.Sub(c.LastUsed) > p.idleTimeout {
+		for lang, queue := range p.containers {
+			var containersToKeep []*Container
+			
+			// 检查队列中的每个容器
+			queue.ForEach(func(c *Container) {
+				if c.Status == ContainerStatusIdle && now.Sub(c.LastUsed) > p.idleTimeout && queue.Size() > p.reservedPerLang {
 					// 标记为销毁中
 					c.Status = ContainerStatusDestroying
 					
@@ -207,10 +265,16 @@ func (p *ContainerPool) cleanupIdleContainers() {
 					p.cli.ContainerStop(ctx, c.ID, container.StopOptions{})
 					p.cli.ContainerRemove(ctx, c.ID, container.RemoveOptions{Force: true})
 				} else {
-					active = append(active, c)
+					containersToKeep = append(containersToKeep, c)
 				}
+			})
+			
+			// 重建队列，只保留非超时容器
+			newQueue := quene.NewRingQueue[*Container](p.maxPerLang)
+			for _, c := range containersToKeep {
+				_ = newQueue.Enqueue(c)
 			}
-			p.containers[lang] = active
+			p.containers[lang] = newQueue
 		}
 		
 		p.mutex.Unlock()
@@ -223,12 +287,12 @@ func (p *ContainerPool) Close() error {
 	defer p.mutex.Unlock()
 	
 	ctx := context.Background()
-	for _, containers := range p.containers {
-		for _, c := range containers {
-			// 停止并删除容器
+	for _, queue := range p.containers {
+		queue.ForEach(func(c *Container) {
+			// 停止并删除非预留容器
 			p.cli.ContainerStop(ctx, c.ID, container.StopOptions{})
 			p.cli.ContainerRemove(ctx, c.ID, container.RemoveOptions{Force: true})
-		}
+		})
 	}
 	
 	return nil

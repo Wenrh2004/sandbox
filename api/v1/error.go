@@ -7,4 +7,6 @@ var (
 	ErrNotFound            = newError(404, "NotFound")
 	ErrForbidden           = newError(403, "Forbidden")
 	ErrInternalServerError = newError(500, "InternalServerError")
+	
+	ErrLimitExceeded = newError(429, "UserLimitExceeded")
 )

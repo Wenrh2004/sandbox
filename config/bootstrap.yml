@@ -1,0 +1,9 @@
+app:
+  addr: :8888
+  base_url: /api
+  task:
+    pool_num: 50
+    user_max_task: 10
+  container:
+    max_num: 10
+    timeout: 24
