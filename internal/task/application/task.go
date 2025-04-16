@@ -15,5 +15,6 @@ func NewTaskApplication(conf *viper.Viper, logger *log.Logger, task *handler.Tas
 	
 	tasks := v1.Group("/task")
 	tasks.POST("/:submit_id", task.Submit)
+	tasks.GET("/:task_id", task.GetResult)
 	return h
 }

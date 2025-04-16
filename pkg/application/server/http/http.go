@@ -25,7 +25,7 @@ type Option func(s *Server)
 func NewServer(conf *viper.Viper, logger *log.Logger, opts ...Option) *Server {
 	h := hertzserver.Default(
 		hertzserver.WithHostPorts(conf.GetString("app.addr")),
-		hertzserver.WithBasePath(conf.GetString("app.base_path")),
+		hertzserver.WithBasePath(conf.GetString("app.base_url")),
 	)
 	url := swagger.URL(fmt.Sprintf("http://localhost%s/swagger/doc.json", conf.GetString("app.addr"))) // The url pointing to API definition
 	h.GET("/swagger/*any", swagger.WrapHandler(swaggerFiles.Handler, url))

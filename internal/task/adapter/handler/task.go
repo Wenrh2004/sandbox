@@ -42,7 +42,7 @@ func NewTaskHandler(srv *adapter.Service, domain *service.TaskDomainService) *Ta
 //	@Failure		400			{object}	v1.Response				"请求参数错误"
 //	@Failure		401			{object}	v1.Response				"未授权"
 //	@Failure		500			{object}	v1.Response				"服务器内部错误"
-//	@Router			/v1/tasks/{submit_id} [post]
+//	@Router			/task/{submit_id} [post]
 func (t *TaskHandler) Submit(ctx context.Context, c *app.RequestContext) {
 	var req v1.TaskSubmitRequest
 	if err := c.BindAndValidate(&req); err != nil {
@@ -95,4 +95,27 @@ func (t *TaskHandler) Submit(ctx context.Context, c *app.RequestContext) {
 	v1.HandlerSuccess(c, &v1.TaskSubmitResponseBody{
 		TaskID: taskID.(string),
 	})
+}
+
+// GetResult godoc
+//	@Summary		获取执行结果
+//	@Description	获取已提交的任务执行结果
+//	@Tags			任务管理
+//	@Accept			json
+//	@Produce		json
+//	@Param			task_id	path		string					true	"任务ID"
+//	@Success		200		{object}	v1.TaskResultResponse	"成功"
+//	@Failure		400		{object}	v1.Response				"请求参数错误"
+//	@Failure		401		{object}	v1.Response				"未授权"
+//	@Failure		500		{object}	v1.Response				"服务器内部错误"
+//	@Router			/task/{task_id} [get]
+func (t *TaskHandler) GetResult(ctx context.Context, c *app.RequestContext) {
+	taskID := c.Param("task_id")
+	result, ok := t.TaskDomainService.GetResult(taskID)
+	if !ok {
+		t.Logger.WithContext(ctx).Error("[TaskHandler.GetResult]task not found", zap.String("task_id", taskID))
+		v1.HandlerError(c, consts.StatusBadRequest, v1.ErrBadRequest)
+		return
+	}
+	v1.HandlerSuccess(c, result)
 }

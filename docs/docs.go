@@ -24,7 +24,7 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/v1/tasks/{submit_id}": {
+        "/task/{submit_id}": {
             "post": {
                 "description": "提交新的任务",
                 "consumes": [
@@ -82,6 +82,56 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/task/{task_id}": {
+            "get": {
+                "description": "获取已提交的任务执行结果",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "任务管理"
+                ],
+                "summary": "获取执行结果",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "任务ID",
+                        "name": "task_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "成功",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Wenrh2004_sandbox_api_v1.TaskResultResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "请求参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Wenrh2004_sandbox_api_v1.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "未授权",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Wenrh2004_sandbox_api_v1.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "服务器内部错误",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Wenrh2004_sandbox_api_v1.Response"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -93,6 +143,37 @@ const docTemplate = `{
                 },
                 "data": {},
                 "message": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_Wenrh2004_sandbox_api_v1.TaskResultResponse": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "integer"
+                },
+                "data": {
+                    "$ref": "#/definitions/github_com_Wenrh2004_sandbox_api_v1.TaskResultResponseBody"
+                },
+                "message": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_Wenrh2004_sandbox_api_v1.TaskResultResponseBody": {
+            "type": "object",
+            "properties": {
+                "language": {
+                    "type": "string"
+                },
+                "stderr": {
+                    "type": "string"
+                },
+                "stdout": {
+                    "type": "string"
+                },
+                "task_id": {
                     "type": "string"
                 }
             }
