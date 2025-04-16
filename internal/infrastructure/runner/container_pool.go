@@ -46,6 +46,9 @@ type ContainerPool struct {
 func NewContainerPool(conf *viper.Viper, cli *client.Client) (*ContainerPool, error) {
 	maxPerLang := conf.GetInt("app.container.max_num")
 	reservedPerLang := conf.GetInt("app.container.reserved_num") // 从配置中读取预留容器数
+	if maxPerLang <= 0 || maxPerLang < reservedPerLang {
+		return nil, fmt.Errorf("invalid maxPerLang (%d) or reservedPerLang (%d)", maxPerLang, reservedPerLang)
+	}
 	
 	pool := &ContainerPool{
 		containers:      make(map[string]*quene.RingQueue[*Container]),
