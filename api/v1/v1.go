@@ -15,9 +15,6 @@ type Response struct {
 
 func HandlerSuccess(c *app.RequestContext, data interface{}) {
 	resp := Response{Code: errorCodeMap[ErrSuccess], Message: ErrSuccess.Error(), Data: data}
-	if _, ok := errorCodeMap[ErrSuccess]; !ok {
-		resp = Response{Code: 0, Message: "", Data: data}
-	}
 	c.JSON(consts.StatusOK, resp)
 }
 

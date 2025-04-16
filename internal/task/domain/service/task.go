@@ -11,8 +11,8 @@ import (
 	"github.com/panjf2000/ants/v2"
 	"github.com/spf13/viper"
 	
-	"github.com/Wenrh2004/sandbox/internal/domain/aggregate"
-	"github.com/Wenrh2004/sandbox/internal/infrastructure/runner"
+	"github.com/Wenrh2004/sandbox/internal/task/domain/aggregate"
+	"github.com/Wenrh2004/sandbox/internal/task/infrastructure/runner"
 	"github.com/Wenrh2004/sandbox/pkg/util"
 )
 

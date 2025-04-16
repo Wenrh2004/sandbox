@@ -21,8 +21,6 @@ type codeRunner struct {
 }
 
 func NewCodeRunner(pool *ContainerPool, cli *client.Client) CodeRunner {
-	// 创建一个临时的Docker客户端
-	
 	return &codeRunner{
 		cli:  cli,
 		pool: pool,

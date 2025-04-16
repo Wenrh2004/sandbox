@@ -1,7 +1,7 @@
 package aggregate
 
 import (
-	"github.com/Wenrh2004/sandbox/internal/domain/aggregate/vo"
+	"github.com/Wenrh2004/sandbox/internal/task/domain/aggregate/vo"
 )
 
 type Task struct {

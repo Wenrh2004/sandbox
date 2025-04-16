@@ -3,10 +3,12 @@ package runner
 import (
 	"context"
 	"fmt"
+	"io"
 	"sync"
 	"time"
 	
 	"github.com/docker/docker/api/types/container"
+	image2 "github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/client"
 	"github.com/spf13/viper"
 	
@@ -98,8 +100,12 @@ func (p *ContainerPool) initReservedContainers() error {
 // getSupportedLanguages 返回所有支持的编程语言
 func (p *ContainerPool) getSupportedLanguages() []string {
 	// 从策略中获取所有支持的语言
-	// TODO: 根据策略注册表获取
-	return []string{"go", "python", "java", "javascript", "cpp"}
+	var supportedLanguages []string
+	strategyMap := GetLanguageStrategyMap()
+	for k := range strategyMap {
+		supportedLanguages = append(supportedLanguages, k)
+	}
+	return supportedLanguages
 }
 
 // GetContainer 从池中获取一个容器，如果没有可用的则创建一个新的
@@ -175,6 +181,38 @@ func (p *ContainerPool) GetContainer(ctx context.Context, language string) (*Con
 		Language: language,
 		Status:   ContainerStatusCreating,
 		LastUsed: time.Now(),
+	}
+	
+	// 检查镜像是否存在
+	imageExists := false
+	images, err := p.cli.ImageList(ctx, image2.ListOptions{All: true})
+	if err == nil {
+		for _, img := range images {
+			for _, tag := range img.RepoTags {
+				if tag == image || tag == image+":latest" {
+					imageExists = true
+					break
+				}
+			}
+			if imageExists {
+				break
+			}
+		}
+	}
+	
+	// 如果镜像不存在，则拉取镜像
+	if !imageExists {
+		reader, err := p.cli.ImagePull(ctx, image, image2.PullOptions{})
+		if err != nil {
+			return nil, fmt.Errorf("[ContainerPool.GetContainer]failed to pull image %s: %v", image, err)
+		}
+		defer reader.Close()
+		
+		// 等待拉取完成
+		_, err = io.Copy(io.Discard, reader)
+		if err != nil {
+			return nil, fmt.Errorf("[ContainerPool.GetContainer]failed to pull image %s: %v", image, err)
+		}
 	}
 	
 	// 创建容器但不启动

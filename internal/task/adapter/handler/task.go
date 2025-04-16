@@ -11,8 +11,8 @@ import (
 	"golang.org/x/sync/singleflight"
 	
 	v1 "github.com/Wenrh2004/sandbox/api/v1"
-	"github.com/Wenrh2004/sandbox/internal/adapter/convert"
-	"github.com/Wenrh2004/sandbox/internal/domain/service"
+	"github.com/Wenrh2004/sandbox/internal/task/adapter/convert"
+	"github.com/Wenrh2004/sandbox/internal/task/domain/service"
 	"github.com/Wenrh2004/sandbox/pkg/adapter"
 )
 

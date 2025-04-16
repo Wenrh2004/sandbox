@@ -7,10 +7,10 @@
 package wire
 
 import (
-	"github.com/Wenrh2004/sandbox/internal/adapter/handler"
-	"github.com/Wenrh2004/sandbox/internal/application"
-	"github.com/Wenrh2004/sandbox/internal/domain/service"
-	"github.com/Wenrh2004/sandbox/internal/infrastructure/runner"
+	"github.com/Wenrh2004/sandbox/internal/task/adapter/handler"
+	"github.com/Wenrh2004/sandbox/internal/task/application"
+	"github.com/Wenrh2004/sandbox/internal/task/domain/service"
+	"github.com/Wenrh2004/sandbox/internal/task/infrastructure/runner"
 	"github.com/Wenrh2004/sandbox/pkg/adapter"
 	"github.com/Wenrh2004/sandbox/pkg/application/app"
 	"github.com/Wenrh2004/sandbox/pkg/application/server/http"

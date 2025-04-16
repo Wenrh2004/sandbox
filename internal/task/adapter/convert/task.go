@@ -2,8 +2,8 @@ package convert
 
 import (
 	v1 "github.com/Wenrh2004/sandbox/api/v1"
-	"github.com/Wenrh2004/sandbox/internal/domain/aggregate"
-	"github.com/Wenrh2004/sandbox/internal/domain/aggregate/vo"
+	"github.com/Wenrh2004/sandbox/internal/task/domain/aggregate"
+	"github.com/Wenrh2004/sandbox/internal/task/domain/aggregate/vo"
 )
 
 func TaskSubmitRequestConvert(request *v1.TaskSubmitRequest, appID string) *aggregate.Task {

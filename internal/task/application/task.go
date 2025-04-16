@@ -3,7 +3,7 @@ package application
 import (
 	"github.com/spf13/viper"
 	
-	"github.com/Wenrh2004/sandbox/internal/adapter/handler"
+	"github.com/Wenrh2004/sandbox/internal/task/adapter/handler"
 	"github.com/Wenrh2004/sandbox/pkg/application/server/http"
 	"github.com/Wenrh2004/sandbox/pkg/log"
 )
