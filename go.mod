@@ -3,8 +3,10 @@ module github.com/Wenrh2004/sandbox
 go 1.24.2
 
 require (
+	github.com/bytedance/sonic v1.13.2
 	github.com/cloudwego/hertz v0.9.7
 	github.com/cloudwego/kitex v0.13.1
+	github.com/coocood/freecache v1.2.4
 	github.com/docker/docker v28.0.4+incompatible
 	github.com/google/uuid v1.6.0
 	github.com/google/wire v0.6.0
@@ -14,6 +16,7 @@ require (
 	github.com/kitex-contrib/registry-nacos/v2 v2.0.0-20250312112926-3d89dd64eadf
 	github.com/nacos-group/nacos-sdk-go/v2 v2.2.9
 	github.com/panjf2000/ants/v2 v2.11.3
+	github.com/redis/go-redis/v9 v9.7.3
 	github.com/sony/sonyflake v1.2.0
 	github.com/spf13/viper v1.20.1
 	github.com/swaggo/files v1.0.1
@@ -52,7 +55,6 @@ require (
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/buger/jsonparser v1.1.1 // indirect
 	github.com/bytedance/gopkg v0.1.2 // indirect
-	github.com/bytedance/sonic v1.13.2 // indirect
 	github.com/bytedance/sonic/loader v0.2.4 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/clbanning/mxj/v2 v2.5.5 // indirect
@@ -71,6 +73,7 @@ require (
 	github.com/containerd/log v0.1.0 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/deckarep/golang-set v1.7.1 // indirect
+	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
 	github.com/distribution/reference v0.6.0 // indirect
 	github.com/docker/go-connections v0.5.0 // indirect
 	github.com/docker/go-units v0.5.0 // indirect
