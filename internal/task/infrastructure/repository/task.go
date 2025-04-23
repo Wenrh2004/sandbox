@@ -40,6 +40,7 @@ func taskConvert(task *aggregate.Task) *model.TaskInfo {
 	if task.Memory == 0 || task.Time == 0 {
 		return &model.TaskInfo{
 			Status:    task.Status.GetCode(),
+			Language:  task.Language.GetType(),
 			Output:    task.Stdout,
 			ErrOutput: task.Stderr,
 		}
@@ -47,6 +48,7 @@ func taskConvert(task *aggregate.Task) *model.TaskInfo {
 	t := task.Time.Milliseconds()
 	return &model.TaskInfo{
 		Status:    task.Status.GetCode(),
+		Language:  task.Language.GetType(),
 		Output:    task.Stdout,
 		ErrOutput: task.Stderr,
 		Memory:    &task.Memory,
@@ -64,25 +66,28 @@ func (t *TaskInfoRepository) GetTaskResult(ctx context.Context, taskID string) (
 	}
 	if taskInfo.Status == 0 {
 		return &aggregate.Task{
-			ID:     taskInfo.ID,
-			Status: *vo.GetStatusByCode(taskInfo.Status),
+			ID:       taskInfo.ID,
+			Language: vo.GetLanguageByType(taskInfo.Language),
+			Status:   *vo.GetStatusByCode(taskInfo.Status),
 		}, nil
 	}
 	if taskInfo.Memory == nil || taskInfo.Time == nil {
 		return &aggregate.Task{
-			ID:     taskInfo.ID,
-			Status: *vo.GetStatusByCode(taskInfo.Status),
-			Stdout: taskInfo.Output,
-			Stderr: taskInfo.ErrOutput,
+			ID:       taskInfo.ID,
+			Language: vo.GetLanguageByType(taskInfo.Language),
+			Status:   *vo.GetStatusByCode(taskInfo.Status),
+			Stdout:   taskInfo.Output,
+			Stderr:   taskInfo.ErrOutput,
 		}, nil
 	}
 	return &aggregate.Task{
-		ID:     taskInfo.ID,
-		Status: *vo.GetStatusByCode(taskInfo.Status),
-		Stdout: taskInfo.Output,
-		Stderr: taskInfo.ErrOutput,
-		Time:   time.Duration(*taskInfo.Time) * time.Millisecond,
-		Memory: *taskInfo.Memory,
+		ID:       taskInfo.ID,
+		Language: vo.GetLanguageByType(taskInfo.Language),
+		Status:   *vo.GetStatusByCode(taskInfo.Status),
+		Stdout:   taskInfo.Output,
+		Stderr:   taskInfo.ErrOutput,
+		Time:     time.Duration(*taskInfo.Time) * time.Millisecond,
+		Memory:   *taskInfo.Memory,
 	}, nil
 }
 

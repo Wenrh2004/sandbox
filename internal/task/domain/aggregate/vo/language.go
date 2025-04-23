@@ -31,6 +31,10 @@ func (l *Language) String() string {
 	return strings.ToLower(l.Type)
 }
 
+func (l *Language) GetType() string {
+	return l.Type
+}
+
 // GetLanguageByType 根据语言类型获取对应的语言对象
 func GetLanguageByType(typ string) *Language {
 	switch strings.ToTitle(typ) {

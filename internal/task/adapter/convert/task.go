@@ -24,6 +24,24 @@ func TaskSubmitRequestConvert(request *v1.TaskSubmitRequest, appID uint64) (*agg
 }
 
 func TaskResultResponseConvert(request *aggregate.Task) *v1.TaskResultResponseBody {
+	if request.Stdout == nil {
+		return &v1.TaskResultResponseBody{
+			TaskID:   request.ID,
+			Language: request.Language.String(),
+			Status:   request.Status.GetMsg(),
+			Stdout:   "",
+			Stderr:   *request.Stderr,
+		}
+	}
+	if request.Stderr == nil {
+		return &v1.TaskResultResponseBody{
+			TaskID:   request.ID,
+			Language: request.Language.String(),
+			Status:   request.Status.GetMsg(),
+			Stdout:   *request.Stdout,
+			Stderr:   "",
+		}
+	}
 	return &v1.TaskResultResponseBody{
 		TaskID:   request.ID,
 		Language: request.Language.String(),

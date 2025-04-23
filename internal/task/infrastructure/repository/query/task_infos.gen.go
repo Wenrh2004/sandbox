@@ -29,11 +29,12 @@ func newTaskInfo(db *gorm.DB, opts ...gen.DOOption) taskInfo {
 	tableName := _taskInfo.taskInfoDo.TableName()
 	_taskInfo.ALL = field.NewAsterisk(tableName)
 	_taskInfo.ID = field.NewString(tableName, "id")
+	_taskInfo.Language = field.NewString(tableName, "language")
 	_taskInfo.Status = field.NewField(tableName, "status")
 	_taskInfo.Output = field.NewString(tableName, "output")
 	_taskInfo.ErrOutput = field.NewString(tableName, "err_output")
-	_taskInfo.Memory = field.NewUint64(tableName, "memory")
-	_taskInfo.Time = field.NewUint64(tableName, "time")
+	_taskInfo.Memory = field.NewInt64(tableName, "memory")
+	_taskInfo.Time = field.NewInt64(tableName, "time")
 	_taskInfo.CreatedAt = field.NewTime(tableName, "created_at")
 	_taskInfo.UpdatedAt = field.NewTime(tableName, "updated_at")
 
@@ -48,11 +49,12 @@ type taskInfo struct {
 
 	ALL       field.Asterisk
 	ID        field.String // 任务ID
+	Language  field.String
 	Status    field.Field  // 任务状态 0 - 待执行 1 - 执行中 2 - 执行成功 3 - 执行失败
 	Output    field.String // 执行结果
 	ErrOutput field.String // 错误输出
-	Memory    field.Uint64 // 内存使用
-	Time      field.Uint64 // 执行时间
+	Memory    field.Int64  // 内存使用
+	Time      field.Int64  // 执行时间
 	CreatedAt field.Time   // 创建时间
 	UpdatedAt field.Time   // 更新时间
 
@@ -72,11 +74,12 @@ func (t taskInfo) As(alias string) *taskInfo {
 func (t *taskInfo) updateTableName(table string) *taskInfo {
 	t.ALL = field.NewAsterisk(table)
 	t.ID = field.NewString(table, "id")
+	t.Language = field.NewString(table, "language")
 	t.Status = field.NewField(table, "status")
 	t.Output = field.NewString(table, "output")
 	t.ErrOutput = field.NewString(table, "err_output")
-	t.Memory = field.NewUint64(table, "memory")
-	t.Time = field.NewUint64(table, "time")
+	t.Memory = field.NewInt64(table, "memory")
+	t.Time = field.NewInt64(table, "time")
 	t.CreatedAt = field.NewTime(table, "created_at")
 	t.UpdatedAt = field.NewTime(table, "updated_at")
 
@@ -95,8 +98,9 @@ func (t *taskInfo) GetFieldByName(fieldName string) (field.OrderExpr, bool) {
 }
 
 func (t *taskInfo) fillFieldMap() {
-	t.fieldMap = make(map[string]field.Expr, 8)
+	t.fieldMap = make(map[string]field.Expr, 9)
 	t.fieldMap["id"] = t.ID
+	t.fieldMap["language"] = t.Language
 	t.fieldMap["status"] = t.Status
 	t.fieldMap["output"] = t.Output
 	t.fieldMap["err_output"] = t.ErrOutput

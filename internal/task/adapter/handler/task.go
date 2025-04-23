@@ -63,6 +63,8 @@ func (t *TaskHandler) Submit(ctx context.Context, c *app.RequestContext) {
 	// Get the appID from the context
 	appIDStr, appID, err := t.GetAppID(ctx)
 	if err != nil {
+		t.Logger.WithContext(ctx).Error("[TaskHandler.Submit]invalid app_id", zap.String("submit_id", submitID), zap.Error(err))
+		v1.HandlerError(c, v1.ErrForbidden)
 		return
 	}
 	

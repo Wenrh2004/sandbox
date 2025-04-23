@@ -41,10 +41,13 @@ func main() {
 	var dataMap = map[string]func(gorm.ColumnType) (dataType string){
 		"bigint": func(columnType gorm.ColumnType) (dataType string) {
 			if n, ok := columnType.Nullable(); ok && n {
-				return "*uint64"
+				return "*int64"
 			}
 			if n, ok := columnType.AutoIncrement(); ok && n {
 				return "uint"
+			}
+			if n, ok := columnType.PrimaryKey(); ok && n {
+				return "uint64"
 			}
 			return "uint64"
 		},
