@@ -10,13 +10,14 @@ import (
 
 var ErrUnsupportedLanguage = errors.New("unsupported language")
 
-func TaskSubmitRequestConvert(request *v1.TaskSubmitRequest, appID uint64) (*aggregate.Task, error) {
+func TaskSubmitRequestConvert(request *v1.TaskSubmitRequest, appID uint64, submitID string) (*aggregate.Task, error) {
 	l := vo.GetLanguageByType(request.Language)
 	if l == nil {
 		return nil, ErrUnsupportedLanguage
 	}
 	return &aggregate.Task{
 		ID:       "",
+		SubmitID: submitID,
 		AppID:    appID,
 		Language: l,
 		Code:     request.Code,

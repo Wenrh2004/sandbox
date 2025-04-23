@@ -32,7 +32,7 @@ func NewWire(viperViper *viper.Viper, logger *log.Logger) (*app.App, func(), err
 	transaction := repository.NewTransaction(repositoryRepository)
 	domainService := domain.NewService(logger, sidSid, transaction)
 	client := runner.NewClient()
-	containerPool, err := runner.GetContainerPool(viperViper, client)
+	containerPool, cleanup, err := runner.NewContainerPool(viperViper, logger, client)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -44,12 +44,13 @@ func NewWire(viperViper *viper.Viper, logger *log.Logger) (*app.App, func(), err
 	server := application.NewTaskApplication(viperViper, logger, taskHandler)
 	appApp := newApp(server, viperViper)
 	return appApp, func() {
+		cleanup()
 	}, nil
 }
 
 // wire.go:
 
-var infrastructureSet = wire.NewSet(runner.NewClient, runner.GetContainerPool, runner.NewCodeRunner, repository.NewDB, repository.NewTransaction, repository.NewRepository, repository.NewSubmitInfoRepository, repository.NewTaskInfoRepository)
+var infrastructureSet = wire.NewSet(runner.NewClient, runner.NewContainerPool, runner.NewCodeRunner, repository.NewDB, repository.NewTransaction, repository.NewRepository, repository.NewSubmitInfoRepository, repository.NewTaskInfoRepository)
 
 var domainSet = wire.NewSet(domain.NewService, service.NewTaskService)
 

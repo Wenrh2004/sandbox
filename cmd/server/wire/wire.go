@@ -22,7 +22,7 @@ import (
 
 var infrastructureSet = wire.NewSet(
 	runner.NewClient,
-	runner.GetContainerPool,
+	runner.NewContainerPool,
 	runner.NewCodeRunner,
 	repository.NewDB,
 	repository.NewTransaction,

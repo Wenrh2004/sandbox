@@ -44,7 +44,10 @@ func NewTaskService(
 	taskRepository repository.TaskInfoRepository,
 	submitRepository repository.SubmitInfoRepository,
 ) *TaskDomainService {
-	p, _ := ants.NewPool(conf.GetInt("app.task.pool_num"))
+	p, err := ants.NewPool(conf.GetInt("app.task.pool_num"))
+	if err != nil {
+		panic(err)
+	}
 	userTaskCounts := make(map[uint64]int)
 	return &TaskDomainService{
 		Service:        srv,

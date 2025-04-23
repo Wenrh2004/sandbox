@@ -71,7 +71,7 @@ func (t *TaskHandler) Submit(ctx context.Context, c *app.RequestContext) {
 	// Single flight to prevent duplicate submissions
 	key := strings.Join([]string{appIDStr, submitID}, ":")
 	taskID, err, _ := t.sf.Do(key, func() (interface{}, error) {
-		req, err := convert.TaskSubmitRequestConvert(&req, appID)
+		req, err := convert.TaskSubmitRequestConvert(&req, appID, submitID)
 		if err != nil {
 			return nil, err
 		}
