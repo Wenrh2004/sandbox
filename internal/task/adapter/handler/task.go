@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"errors"
+	"strconv"
 	"strings"
 	
 	"github.com/cloudwego/hertz/pkg/app"
@@ -60,23 +61,40 @@ func (t *TaskHandler) Submit(ctx context.Context, c *app.RequestContext) {
 	}
 	
 	// Get the appID from the context
-	appID, ok := ctx.Value("appID").(string)
-	if !ok {
-		t.Logger.WithContext(ctx).Error("[TaskHandler.Submit]appID not found in context")
-		v1.HandlerError(c, consts.StatusUnauthorized, v1.ErrUnauthorized)
+	// appIDStr, ok := ctx.Value("appID").(string)
+	appIDStr := "123456"
+	// if !ok {
+	// 	t.Logger.WithContext(ctx).Error("[TaskHandler.Submit]appID not found in context")
+	// 	v1.HandlerError(c, consts.StatusUnauthorized, v1.ErrUnauthorized)
+	// 	return
+	// }
+	
+	appID, err := strconv.ParseUint(appIDStr, 10, 64)
+	if err != nil {
+		t.Logger.WithContext(ctx).Error("[TaskHandler.Submit]invalid appID", zap.Error(err))
+		v1.HandlerError(c, consts.StatusBadRequest, v1.ErrBadRequest)
 		return
 	}
 	
 	// Single flight to prevent duplicate submissions
-	key := strings.Join([]string{appID, submitID}, ":")
+	key := strings.Join([]string{appIDStr, submitID}, ":")
 	taskID, err, _ := t.sf.Do(key, func() (interface{}, error) {
-		taskID, err := t.TaskDomainService.Submit(ctx, convert.TaskSubmitRequestConvert(&req, appID))
+		req, err := convert.TaskSubmitRequestConvert(&req, appID)
+		if err != nil {
+			return nil, err
+		}
+		taskID, err := t.TaskDomainService.Submit(ctx, req)
 		if err != nil {
 			return nil, err
 		}
 		return taskID, nil
 	})
 	if err != nil {
+		if errors.Is(err, convert.ErrUnsupportedLanguage) {
+			t.Logger.WithContext(ctx).Error("[TaskHandler.Submit]unsupported language", zap.Error(err))
+			v1.HandlerError(c, consts.StatusBadRequest, v1.ErrBadRequest)
+			return
+		}
 		if errors.Is(err, service.ErrUnsupported) {
 			t.Logger.WithContext(ctx).Error("[TaskHandler.Submit]unsupported submit task", zap.Error(err))
 			v1.HandlerError(c, consts.StatusBadRequest, v1.ErrBadRequest)
@@ -111,11 +129,11 @@ func (t *TaskHandler) Submit(ctx context.Context, c *app.RequestContext) {
 //	@Router			/task/{task_id} [get]
 func (t *TaskHandler) GetResult(ctx context.Context, c *app.RequestContext) {
 	taskID := c.Param("task_id")
-	result, ok := t.TaskDomainService.GetResult(taskID)
-	if !ok {
+	result, err := t.TaskDomainService.GetResult(ctx, taskID)
+	if err != nil {
 		t.Logger.WithContext(ctx).Error("[TaskHandler.GetResult]task not found", zap.String("task_id", taskID))
-		v1.HandlerError(c, consts.StatusBadRequest, v1.ErrBadRequest)
+		v1.HandlerError(c, consts.StatusBadRequest, err)
 		return
 	}
-	v1.HandlerSuccess(c, result)
+	v1.HandlerSuccess(c, convert.TaskResultResponseConvert(result))
 }

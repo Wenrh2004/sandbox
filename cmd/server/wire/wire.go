@@ -10,20 +10,29 @@ import (
 	"github.com/Wenrh2004/sandbox/internal/task/adapter/handler"
 	"github.com/Wenrh2004/sandbox/internal/task/application"
 	"github.com/Wenrh2004/sandbox/internal/task/domain/service"
+	"github.com/Wenrh2004/sandbox/internal/task/infrastructure/repository"
 	"github.com/Wenrh2004/sandbox/internal/task/infrastructure/runner"
 	"github.com/Wenrh2004/sandbox/pkg/adapter"
 	"github.com/Wenrh2004/sandbox/pkg/application/app"
 	"github.com/Wenrh2004/sandbox/pkg/application/server/http"
+	"github.com/Wenrh2004/sandbox/pkg/domain"
 	"github.com/Wenrh2004/sandbox/pkg/log"
+	"github.com/Wenrh2004/sandbox/pkg/sid"
 )
 
 var infrastructureSet = wire.NewSet(
 	runner.NewClient,
 	runner.GetContainerPool,
 	runner.NewCodeRunner,
+	repository.NewDB,
+	repository.NewTransaction,
+	repository.NewRepository,
+	repository.NewSubmitInfoRepository,
+	repository.NewTaskInfoRepository,
 )
 
 var domainSet = wire.NewSet(
+	domain.NewService,
 	service.NewTaskService,
 )
 
@@ -57,7 +66,7 @@ func NewWire(*viper.Viper, *log.Logger) (*app.App, func(), error) {
 		adapterSet,
 		applicationSet,
 		// uuid.NewUUID,
-		// sid.NewSid,
+		sid.NewSid,
 		newApp,
 	))
 }

@@ -10,11 +10,14 @@ import (
 	"github.com/Wenrh2004/sandbox/internal/task/adapter/handler"
 	"github.com/Wenrh2004/sandbox/internal/task/application"
 	"github.com/Wenrh2004/sandbox/internal/task/domain/service"
+	"github.com/Wenrh2004/sandbox/internal/task/infrastructure/repository"
 	"github.com/Wenrh2004/sandbox/internal/task/infrastructure/runner"
 	"github.com/Wenrh2004/sandbox/pkg/adapter"
 	"github.com/Wenrh2004/sandbox/pkg/application/app"
 	"github.com/Wenrh2004/sandbox/pkg/application/server/http"
+	"github.com/Wenrh2004/sandbox/pkg/domain"
 	"github.com/Wenrh2004/sandbox/pkg/log"
+	"github.com/Wenrh2004/sandbox/pkg/sid"
 	"github.com/google/wire"
 	"github.com/spf13/viper"
 )
@@ -23,13 +26,20 @@ import (
 
 func NewWire(viperViper *viper.Viper, logger *log.Logger) (*app.App, func(), error) {
 	adapterService := adapter.NewService(logger)
+	sidSid := sid.NewSid()
+	db := repository.NewDB(viperViper, logger)
+	repositoryRepository := repository.NewRepository(logger, db)
+	transaction := repository.NewTransaction(repositoryRepository)
+	domainService := domain.NewService(logger, sidSid, transaction)
 	client := runner.NewClient()
 	containerPool, err := runner.GetContainerPool(viperViper, client)
 	if err != nil {
 		return nil, nil, err
 	}
 	codeRunner := runner.NewCodeRunner(containerPool, client)
-	taskDomainService := service.NewTaskService(viperViper, codeRunner)
+	taskInfoRepository := repository.NewTaskInfoRepository()
+	submitInfoRepository := repository.NewSubmitInfoRepository()
+	taskDomainService := service.NewTaskService(viperViper, domainService, codeRunner, taskInfoRepository, submitInfoRepository)
 	taskHandler := handler.NewTaskHandler(adapterService, taskDomainService)
 	server := application.NewTaskApplication(viperViper, logger, taskHandler)
 	appApp := newApp(server, viperViper)
@@ -39,9 +49,9 @@ func NewWire(viperViper *viper.Viper, logger *log.Logger) (*app.App, func(), err
 
 // wire.go:
 
-var infrastructureSet = wire.NewSet(runner.NewClient, runner.GetContainerPool, runner.NewCodeRunner)
+var infrastructureSet = wire.NewSet(runner.NewClient, runner.GetContainerPool, runner.NewCodeRunner, repository.NewDB, repository.NewTransaction, repository.NewRepository, repository.NewSubmitInfoRepository, repository.NewTaskInfoRepository)
 
-var domainSet = wire.NewSet(service.NewTaskService)
+var domainSet = wire.NewSet(domain.NewService, service.NewTaskService)
 
 var adapterSet = wire.NewSet(adapter.NewService, handler.NewTaskHandler)
 

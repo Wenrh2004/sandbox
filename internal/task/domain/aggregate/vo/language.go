@@ -27,6 +27,11 @@ var (
 	CSHARP     = newLanguage("C#", ".cs", "mcr.microsoft.com/dotnet/sdk:7.0")
 )
 
+func (l *Language) String() string {
+	return strings.ToLower(l.Type)
+}
+
+// GetLanguageByType 根据语言类型获取对应的语言对象
 func GetLanguageByType(typ string) *Language {
 	switch strings.ToTitle(typ) {
 	case GO.Type:

@@ -17,6 +17,7 @@ type TaskSubmitResponse struct {
 type TaskResultResponseBody struct {
 	TaskID   string `json:"task_id"`
 	Language string `json:"language"`
+	Status   string `json:"status"`
 	Stdout   string `json:"stdout"`
 	Stderr   string `json:"stderr"`
 }

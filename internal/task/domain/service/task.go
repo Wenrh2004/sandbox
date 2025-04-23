@@ -3,16 +3,18 @@ package service
 import (
 	"context"
 	"errors"
-	"os"
-	"path/filepath"
 	"sync"
 	
 	"github.com/google/uuid"
 	"github.com/panjf2000/ants/v2"
 	"github.com/spf13/viper"
+	"go.uber.org/zap"
 	
 	"github.com/Wenrh2004/sandbox/internal/task/domain/aggregate"
+	"github.com/Wenrh2004/sandbox/internal/task/domain/aggregate/vo"
+	"github.com/Wenrh2004/sandbox/internal/task/domain/repository"
 	"github.com/Wenrh2004/sandbox/internal/task/infrastructure/runner"
+	"github.com/Wenrh2004/sandbox/pkg/domain"
 	"github.com/Wenrh2004/sandbox/pkg/util"
 )
 
@@ -23,21 +25,34 @@ var (
 
 // TaskDomainService 结构体
 type TaskDomainService struct {
+	*domain.Service
 	pool           *ants.Pool
 	runner         runner.CodeRunner
-	userTaskCounts sync.Map // map[string]*int32
-	resultStore    sync.Map // map[taskID] => result
+	userTaskCounts map[uint64]int
+	resultStore    repository.TaskInfoRepository
+	submitStore    repository.SubmitInfoRepository
 	maxTaskPerUser int
 	mu             sync.Mutex
 }
 
 // NewTaskService 初始化任务服务
-func NewTaskService(conf *viper.Viper, r runner.CodeRunner) *TaskDomainService {
+func NewTaskService(
+	conf *viper.Viper,
+	srv *domain.Service,
+	r runner.CodeRunner,
+	taskRepository repository.TaskInfoRepository,
+	submitRepository repository.SubmitInfoRepository,
+) *TaskDomainService {
 	p, _ := ants.NewPool(conf.GetInt("app.task.pool_num"))
+	userTaskCounts := make(map[uint64]int)
 	return &TaskDomainService{
+		Service:        srv,
 		pool:           p,
 		runner:         r,
 		maxTaskPerUser: conf.GetInt("app.task.user_max_task"),
+		userTaskCounts: userTaskCounts,
+		resultStore:    taskRepository,
+		submitStore:    submitRepository,
 	}
 }
 
@@ -55,21 +70,43 @@ func (s *TaskDomainService) Submit(ctx context.Context, task *aggregate.Task) (s
 		return "", ErrTaskLimit
 	}
 	
-	tmpPath := filepath.Join("tmp", filename)
+	if err := s.Tx.Transaction(ctx, func(ctx context.Context) error {
+		if err := s.submitStore.CreateSubmitInfo(ctx, task); err != nil {
+			return err
+		}
+		
+		if err := s.resultStore.CreateTaskInfo(ctx, task); err != nil {
+			return err
+		}
+		
+		return nil
+	}); err != nil {
+		s.releaseUserSlot(task.AppID)
+		s.Logger.Error("[TaskDomainService.Submit] failed to create task info", zap.Error(err))
+		return "", err
+	}
 	
 	// 封装执行逻辑
 	err := s.pool.Submit(func() {
 		defer s.releaseUserSlot(task.AppID)
-		output, err := s.runner.Exec(ctx, lang, tmpPath, task.Code)
+		output, err := s.runner.Exec(ctx, lang, filename, task.Code)
 		if err != nil {
-			s.resultStore.Store(task.ID, "[error] "+err.Error())
+			stdErr := err.Error()
+			task.Stderr = &stdErr
+			task.Status = *vo.Failed
+			if err := s.resultStore.UpdateTaskInfo(ctx, task); err != nil {
+				s.Logger.Error("[TaskDomainService.Submit] failed to update task info", zap.Error(err))
+			}
 		} else {
-			s.resultStore.Store(task.ID, output)
+			task.Stdout = &output
+			task.Status = *vo.Success
+			if err := s.resultStore.UpdateTaskInfo(ctx, task); err != nil {
+				s.Logger.Error("[TaskDomainService.Submit] failed to update task info", zap.Error(err))
+			}
 		}
-		_ = os.Remove(tmpPath) // 清理
 	})
 	if err != nil {
-		s.releaseUserSlot(task.ID)
+		s.releaseUserSlot(task.AppID)
 		return "", err
 	}
 	
@@ -77,39 +114,37 @@ func (s *TaskDomainService) Submit(ctx context.Context, task *aggregate.Task) (s
 }
 
 // GetResult 获取任务结果
-func (s *TaskDomainService) GetResult(taskID string) (string, bool) {
-	if val, ok := s.resultStore.Load(taskID); ok {
-		return val.(string), true
+func (s *TaskDomainService) GetResult(ctx context.Context, taskID string) (*aggregate.Task, error) {
+	result, err := s.resultStore.GetTaskResult(ctx, taskID)
+	if err != nil {
+		return nil, err
 	}
-	return "pending", false
+	return result, nil
 }
 
 // ----------- 用户限流部分 -----------
 
-func (s *TaskDomainService) acquireUserSlot(userID string) bool {
+func (s *TaskDomainService) acquireUserSlot(userID uint64) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	
-	var count int
-	val, _ := s.userTaskCounts.LoadOrStore(userID, 0)
-	count = val.(int)
+	count, _ := s.userTaskCounts[userID]
 	if count >= s.maxTaskPerUser {
 		return false
 	}
-	s.userTaskCounts.Store(userID, count+1)
+	s.userTaskCounts[userID] = count + 1
 	return true
 }
 
-func (s *TaskDomainService) releaseUserSlot(userID string) {
+func (s *TaskDomainService) releaseUserSlot(userID uint64) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	
-	if val, ok := s.userTaskCounts.Load(userID); ok {
-		count := val.(int)
+	if count, ok := s.userTaskCounts[userID]; ok {
 		if count <= 1 {
-			s.userTaskCounts.Delete(userID)
+			delete(s.userTaskCounts, userID)
 		} else {
-			s.userTaskCounts.Store(userID, count-1)
+			s.userTaskCounts[userID] = count - 1
 		}
 	}
 }
