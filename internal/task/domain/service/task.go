@@ -19,8 +19,9 @@ import (
 )
 
 var (
-	ErrUnsupported = errors.New("[TaskDomainService.Submit]unsupported language")
-	ErrTaskLimit   = errors.New("[TaskDomainService.Submit]user task limit reached")
+	ErrUnsupported  = errors.New("[TaskDomainService.Submit]unsupported language")
+	ErrTaskLimit    = errors.New("[TaskDomainService.Submit]user task limit reached")
+	ErrTaskNotFound = errors.New("[TaskDomainService.GetResult]task not found")
 )
 
 // TaskDomainService 结构体
@@ -147,4 +148,20 @@ func (s *TaskDomainService) releaseUserSlot(userID uint64) {
 			s.userTaskCounts[userID] = count - 1
 		}
 	}
+}
+
+func (s *TaskDomainService) CheckTaskBelongsToApp(ctx context.Context, taskID string, appID uint64) (bool, error) {
+	tasks, err := s.submitStore.GetSubmitInfoByTaskIDAndAppID(ctx, taskID)
+	if err != nil {
+		return false, err
+	}
+	if tasks == nil {
+		return false, ErrTaskNotFound
+	}
+	for _, task := range tasks {
+		if task.AppID == appID {
+			return true, nil
+		}
+	}
+	return false, nil
 }

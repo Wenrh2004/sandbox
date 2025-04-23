@@ -18,12 +18,12 @@ func HandlerSuccess(c *app.RequestContext, data interface{}) {
 	c.JSON(consts.StatusOK, resp)
 }
 
-func HandlerError(c *app.RequestContext, httpCode int, err error) {
+func HandlerError(c *app.RequestContext, err error) {
 	resp := Response{Code: errorCodeMap[err], Message: err.Error()}
 	if _, ok := errorCodeMap[err]; !ok {
 		resp = Response{Code: 500, Message: "unknown error"}
 	}
-	c.JSON(httpCode, resp)
+	c.JSON(consts.StatusOK, resp)
 }
 
 type Error struct {

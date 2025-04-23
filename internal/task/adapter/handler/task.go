@@ -3,11 +3,11 @@ package handler
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 	
 	"github.com/cloudwego/hertz/pkg/app"
-	"github.com/cloudwego/hertz/pkg/protocol/consts"
 	"go.uber.org/zap"
 	"golang.org/x/sync/singleflight"
 	
@@ -48,7 +48,7 @@ func (t *TaskHandler) Submit(ctx context.Context, c *app.RequestContext) {
 	var req v1.TaskSubmitRequest
 	if err := c.BindAndValidate(&req); err != nil {
 		t.Logger.WithContext(ctx).Error("[TaskHandler.Submit]invalid request", zap.Error(err))
-		v1.HandlerError(c, consts.StatusBadRequest, v1.ErrBadRequest)
+		v1.HandlerError(c, v1.ErrBadRequest)
 		return
 	}
 	
@@ -56,23 +56,13 @@ func (t *TaskHandler) Submit(ctx context.Context, c *app.RequestContext) {
 	submitID := c.Param("submit_id")
 	if submitID == "" {
 		t.Logger.WithContext(ctx).Error("[TaskHandler.Submit]invalid submit_id", zap.String("submit_id", submitID))
-		v1.HandlerError(c, consts.StatusBadRequest, v1.ErrBadRequest)
+		v1.HandlerError(c, v1.ErrBadRequest)
 		return
 	}
 	
 	// Get the appID from the context
-	// appIDStr, ok := ctx.Value("appID").(string)
-	appIDStr := "123456"
-	// if !ok {
-	// 	t.Logger.WithContext(ctx).Error("[TaskHandler.Submit]appID not found in context")
-	// 	v1.HandlerError(c, consts.StatusUnauthorized, v1.ErrUnauthorized)
-	// 	return
-	// }
-	
-	appID, err := strconv.ParseUint(appIDStr, 10, 64)
+	appIDStr, appID, err := t.GetAppID(ctx)
 	if err != nil {
-		t.Logger.WithContext(ctx).Error("[TaskHandler.Submit]invalid appID", zap.Error(err))
-		v1.HandlerError(c, consts.StatusBadRequest, v1.ErrBadRequest)
 		return
 	}
 	
@@ -92,21 +82,21 @@ func (t *TaskHandler) Submit(ctx context.Context, c *app.RequestContext) {
 	if err != nil {
 		if errors.Is(err, convert.ErrUnsupportedLanguage) {
 			t.Logger.WithContext(ctx).Error("[TaskHandler.Submit]unsupported language", zap.Error(err))
-			v1.HandlerError(c, consts.StatusBadRequest, v1.ErrBadRequest)
+			v1.HandlerError(c, v1.ErrBadRequest)
 			return
 		}
 		if errors.Is(err, service.ErrUnsupported) {
 			t.Logger.WithContext(ctx).Error("[TaskHandler.Submit]unsupported submit task", zap.Error(err))
-			v1.HandlerError(c, consts.StatusBadRequest, v1.ErrBadRequest)
+			v1.HandlerError(c, v1.ErrBadRequest)
 			return
 		}
 		if errors.Is(err, service.ErrTaskLimit) {
 			t.Logger.WithContext(ctx).Error("[TaskHandler.Submit]task limit exceeded", zap.Error(err))
-			v1.HandlerError(c, consts.StatusBadGateway, v1.ErrLimitExceeded)
+			v1.HandlerError(c, v1.ErrLimitExceeded)
 			return
 		}
 		t.Logger.WithContext(ctx).Error("[TaskHandler.Submit]submit task failed", zap.Error(err))
-		v1.HandlerError(c, consts.StatusInternalServerError, v1.ErrInternalServerError)
+		v1.HandlerError(c, v1.ErrInternalServerError)
 		return
 	}
 	
@@ -129,11 +119,52 @@ func (t *TaskHandler) Submit(ctx context.Context, c *app.RequestContext) {
 //	@Router			/task/{task_id} [get]
 func (t *TaskHandler) GetResult(ctx context.Context, c *app.RequestContext) {
 	taskID := c.Param("task_id")
+	if taskID == "" {
+		t.Logger.WithContext(ctx).Error("[TaskHandler.GetResult]invalid task_id", zap.String("task_id", taskID))
+		v1.HandlerError(c, v1.ErrBadRequest)
+		return
+	}
+	// Get the appID from the context
+	_, appID, err := t.GetAppID(ctx)
+	if err != nil {
+		t.Logger.WithContext(ctx).Error("[TaskHandler.GetResult]invalid app_id", zap.String("task_id", taskID), zap.Error(err))
+		v1.HandlerError(c, v1.ErrBadRequest)
+		return
+	}
+	// Check if the taskID belongs to the appID
+	ok, err := t.TaskDomainService.CheckTaskBelongsToApp(ctx, taskID, appID)
+	if err != nil {
+		if errors.Is(err, service.ErrTaskNotFound) {
+			t.Logger.WithContext(ctx).Error("[TaskHandler.GetResult]task not found", zap.String("task_id", taskID), zap.Error(err))
+			v1.HandlerError(c, v1.ErrBadRequest)
+			return
+		}
+		t.Logger.WithContext(ctx).Error("[TaskHandler.GetResult]check task belongs to app failed", zap.String("task_id", taskID), zap.Uint64("app_id", appID), zap.Error(err))
+		v1.HandlerError(c, v1.ErrForbidden)
+	}
+	if !ok {
+		t.Logger.WithContext(ctx).Error("[TaskHandler.GetResult]task not found", zap.String("task_id", taskID), zap.Uint64("app_id", appID))
+		v1.HandlerError(c, v1.ErrBadRequest)
+		return
+	}
 	result, err := t.TaskDomainService.GetResult(ctx, taskID)
 	if err != nil {
 		t.Logger.WithContext(ctx).Error("[TaskHandler.GetResult]task not found", zap.String("task_id", taskID))
-		v1.HandlerError(c, consts.StatusBadRequest, err)
+		v1.HandlerError(c, err)
 		return
 	}
 	v1.HandlerSuccess(c, convert.TaskResultResponseConvert(result))
+}
+
+func (t *TaskHandler) GetAppID(ctx context.Context) (string, uint64, error) {
+	appIDStr, ok := ctx.Value("appID").(string)
+	if !ok {
+		return "", 0, errors.New("[TaskHandler.Submit]appID not found in context")
+	}
+	
+	appID, err := strconv.ParseUint(appIDStr, 10, 64)
+	if err != nil {
+		return "", 0, fmt.Errorf("[TaskHandler.Submit]invalid appID %w", err)
+	}
+	return appIDStr, appID, nil
 }

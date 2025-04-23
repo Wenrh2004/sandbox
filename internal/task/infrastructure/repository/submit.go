@@ -2,6 +2,8 @@ package repository
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	
 	"github.com/Wenrh2004/sandbox/internal/task/domain/aggregate"
 	"github.com/Wenrh2004/sandbox/internal/task/domain/aggregate/vo"
@@ -12,6 +14,19 @@ import (
 
 type SubmitInfoRepository struct {
 	query *query.Query
+}
+
+func (s *SubmitInfoRepository) GetSubmitInfoByTaskIDAndAppID(ctx context.Context, taskID string) ([]*aggregate.Task, error) {
+	infos, err := s.query.SubmitInfo.WithContext(ctx).Where(
+		query.SubmitInfo.TaskID.Eq(taskID),
+	).Find()
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return submitInfosConvert(infos), nil
 }
 
 func (s *SubmitInfoRepository) CreateSubmitInfo(ctx context.Context, submitInfo *aggregate.Task) error {

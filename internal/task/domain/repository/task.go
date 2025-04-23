@@ -9,6 +9,7 @@ import (
 type SubmitInfoRepository interface {
 	CreateSubmitInfo(ctx context.Context, submitInfo *aggregate.Task) error
 	GetSubmitInfo(ctx context.Context, submitID string) ([]*aggregate.Task, error)
+	GetSubmitInfoByTaskIDAndAppID(ctx context.Context, taskID string) ([]*aggregate.Task, error)
 }
 
 type TaskInfoRepository interface {
