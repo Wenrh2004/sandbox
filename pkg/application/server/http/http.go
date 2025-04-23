@@ -27,7 +27,7 @@ func NewServer(conf *viper.Viper, logger *log.Logger, opts ...Option) *Server {
 		hertzserver.WithHostPorts(conf.GetString("app.addr")),
 		hertzserver.WithBasePath(conf.GetString("app.base_url")),
 	)
-	url := swagger.URL(fmt.Sprintf("http://localhost%s/swagger/doc.json", conf.GetString("app.addr"))) // The url pointing to API definition
+	url := swagger.URL(fmt.Sprintf("http://localhost%s%s/swagger/doc.json", conf.GetString("app.addr"), conf.GetString("app.base_url"))) // The url pointing to API definition
 	h.GET("/swagger/*any", swagger.WrapHandler(swaggerFiles.Handler, url))
 	s := &Server{
 		Hertz:  h,

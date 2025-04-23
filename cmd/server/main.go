@@ -42,8 +42,8 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	logger.Info("server start", zap.String("host", fmt.Sprintf("http://loaclhost%s/%s", conf.GetString("app.addr"), conf.GetString("app.base_url"))))
-	logger.Info("docs addr", zap.String("addr", fmt.Sprintf("http://localhost%s/swagger/index.html", conf.GetString("app.addr"))))
+	logger.Info("server start", zap.String("host", fmt.Sprintf("http://loaclhost%s%s", conf.GetString("app.addr"), conf.GetString("app.base_url"))))
+	logger.Info("docs addr", zap.String("addr", fmt.Sprintf("http://localhost%s%s/swagger/index.html", conf.GetString("app.addr"), conf.GetString("app.base_url"))))
 	if err = app.Run(context.Background()); err != nil {
 		panic(err)
 	}
