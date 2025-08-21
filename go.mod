@@ -29,6 +29,7 @@ require (
 	gorm.io/driver/postgres v1.5.0
 	gorm.io/gen v0.3.27
 	gorm.io/gorm v1.25.11
+	gorm.io/plugin/dbresolver v1.5.0
 )
 
 require (
@@ -95,7 +96,7 @@ require (
 	github.com/go-openapi/spec v0.21.0 // indirect
 	github.com/go-openapi/swag v0.23.1 // indirect
 	github.com/go-sql-driver/mysql v1.8.1 // indirect
-	github.com/go-viper/mapstructure/v2 v2.2.1 // indirect
+	github.com/go-viper/mapstructure/v2 v2.4.0 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/mock v1.6.0 // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
@@ -180,7 +181,6 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	gorm.io/datatypes v1.2.4 // indirect
 	gorm.io/hints v1.1.0 // indirect
-	gorm.io/plugin/dbresolver v1.5.0 // indirect
 	gotest.tools/v3 v3.5.2 // indirect
 	modernc.org/libc v1.22.5 // indirect
 	modernc.org/mathutil v1.5.0 // indirect
